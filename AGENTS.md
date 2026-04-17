@@ -20,7 +20,7 @@ Docs: root [README.md](README.md)
 This project uses `uv` for development. Follow setup in [Setup (with uv)](README.md#setup-with-uv).
 
 - **Help**: `uv run python -m mintmaker_schedule_calculator -h`
-- **Run**: `uv run python -m mintmaker_schedule_calculator -n 5 -c renovate.json` - see [Basic Usage](README.md#basic-usage) for flags explained
+- **Run**: `uv run python -m mintmaker_schedule_calculator -n 5` - see [Basic Usage](README.md#basic-usage) for flags explained
 - **Lint check**: `uv run ruff check src` (single file - `uv run ruff check src/mintmaker_schedule_calculator/cli.py`)
 - **Quick type check**: `uv run --with pyright pyright src/mintmaker_schedule_calculator`
 - **Build image**: `podman/docker build -f Containerfile -t mintmaker-schedule-calculator .`
