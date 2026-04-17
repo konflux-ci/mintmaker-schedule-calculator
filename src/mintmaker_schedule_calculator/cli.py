@@ -1,11 +1,13 @@
 import argparse
 import json
 import logging
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from cron_converter import Cron
 
-from .k8s import get_cronjob_schedule_from_k8s
+from .k8s import get_configmap_from_k8s, get_cronjob_schedule_from_k8s
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 CRONJOB_NAME = "create-dependencyupdatecheck"
 CRONJOB_NAMESPACE = "mintmaker"
+CONFIGMAP_NAME = "renovate-config"
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", ".")
 
 
 def merge_cron_schedules(cron_expression: str, general_schedule_expression: str) -> Cron | None:
@@ -70,10 +74,12 @@ def analyze_cron_schedule(
 
 def write_to_txt(next_runs: list[str], filename: str = "scheduled_times.txt") -> bool:
     try:
-        with open(filename, "w", encoding="utf-8") as output_file:
+        filepath = Path(OUTPUT_DIR) / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as output_file:
             for time in next_runs:
                 output_file.write(f"{time}\n")
-        logger.info("Results written to %s.", filename)
+        logger.info("Results written to %s.", filepath)
         return True
     except Exception as e:
         logger.error("Could not write to file %s: %s.", filename, e)
@@ -96,11 +102,38 @@ def find_managers_with_schedules(config: dict) -> dict[str, str]:
     return managers
 
 
-def parse_renovate_config(config_path: str) -> dict[str, str]:
-    try:
-        with open(config_path, "r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
+# def parse_renovate_config_from_file(config_path: str) -> dict[str, str]:
+#     try:
+#         with open(config_path, "r", encoding="utf-8") as config_file:
+#             config = json.load(config_file)
+#
+#         managers_with_schedules = find_managers_with_schedules(config)
+#
+#         if managers_with_schedules:
+#             logger.info("Found %d manager(s) with schedules.", len(managers_with_schedules))
+#         else:
+#             logger.info("No managers with schedules found.")
+#
+#         return managers_with_schedules
+#     except Exception as e:
+#         logger.error("Error parsing renovate config from file: %s.", e)
+#         return {}
 
+
+def parse_renovate_config_from_configmap(
+    configmap_name: str, namespace: str, key: str = "renovate.json"
+) -> dict[str, str]:
+    try:
+        data = get_configmap_from_k8s(configmap_name, namespace)
+        if data is None:
+            logger.error("Could not fetch ConfigMap %s/%s.", namespace, configmap_name)
+            return {}
+
+        if key not in data:
+            logger.error("Key '%s' not found in ConfigMap %s/%s.", key, namespace, configmap_name)
+            return {}
+
+        config = json.loads(data[key])
         managers_with_schedules = find_managers_with_schedules(config)
 
         if managers_with_schedules:
@@ -110,7 +143,7 @@ def parse_renovate_config(config_path: str) -> dict[str, str]:
 
         return managers_with_schedules
     except Exception as e:
-        logger.error("Error parsing renovate config: %s.", e)
+        logger.error("Error parsing renovate config from ConfigMap: %s.", e)
         return {}
 
 
@@ -126,12 +159,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=5,
         help="Number of next scheduled runs to calculate (default: 5)",
     )
+    # parser.add_argument(
+    #     "-c",
+    #     "--config",
+    #     type=str,
+    #     default=None,
+    #     help="Config path for renovate.json (local file)",
+    # )
     parser.add_argument(
-        "-c",
-        "--config",
+        "--configmap",
+        type=str,
+        default=CONFIGMAP_NAME,
+        help=f"ConfigMap name containing renovate.json (default: {CONFIGMAP_NAME})",
+    )
+    parser.add_argument(
+        "--configmap-key",
         type=str,
         default="renovate.json",
-        help="Config path for renovate.json",
+        help="Key in ConfigMap containing the config (default: renovate.json)",
     )
     parser.add_argument(
         "--cronjob-name",
@@ -168,7 +213,9 @@ def main(argv: list[str] | None = None) -> int:
             logger.error("Failed to process general schedule: %s.", e)
 
         logger.info("Processing Renovate managers...")
-        managers = parse_renovate_config(args.config)
+        managers = parse_renovate_config_from_configmap(
+            args.configmap, args.namespace, args.configmap_key
+        )
 
         for manager_name, schedule in managers.items():
             logger.info("Processing manager: %s.", manager_name)
