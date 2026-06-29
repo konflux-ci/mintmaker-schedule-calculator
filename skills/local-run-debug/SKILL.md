@@ -19,13 +19,12 @@ uv sync
 ## Run locally
 
 ```bash
-uv run python -m mintmaker_schedule_calculator -n 5 -c skills/local-run-debug/assets/renovate.json
+uv run python -m mintmaker_schedule_calculator -n 5
 ```
 
 | Flag | Default | Purpose |
 |------|---------|---------|
 | `-n` / `--count` | `5` | Number of upcoming runs per schedule |
-| `-c` / `--config` | `renovate.json` | Renovate config path |
 | `--cronjob-name` | `create-dependencyupdatecheck` | CronJob to read |
 | `--namespace` | `mintmaker` | CronJob namespace |
 
@@ -83,7 +82,7 @@ Logging is fixed at **INFO** (`cli.py`); there is no log-level flag.
 podman build -f Containerfile -t mintmaker-schedule-calculator .
 podman run --rm -v "$HOME/.kube:/.kube:ro" -e KUBECONFIG=/.kube/config \
   -v "$(pwd)/skills/local-run-debug/assets/renovate.json:/opt/app-root/src/renovate.json:ro" \
-  mintmaker-schedule-calculator -n 3 -c renovate.json
+  mintmaker-schedule-calculator -n 3
 ```
 
 Adjust kubeconfig mount and `renovate.json` path for your environment.

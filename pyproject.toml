@@ -13,6 +13,12 @@ dependencies = [
     "kubernetes>=35.0.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/mintmaker_schedule_calculator"]
 
