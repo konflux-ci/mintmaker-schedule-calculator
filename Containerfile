@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi10/python-312-minimal@sha256:24fa2174728915326e07755c19a0f313bcdd1f763a01baafa5e71b4d46b1e880
+FROM registry.access.redhat.com/ubi10/python-312-minimal@sha256:c0717a2e8da811f7100b00ed59d6997fa7d3178b95039ac805d414e783a15641
 
 WORKDIR /
 # OpenShift preflight check requires licensing files under /licenses
