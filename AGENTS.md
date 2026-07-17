@@ -32,7 +32,7 @@ This project uses `uv` for development. Follow setup in [Setup (with uv)](README
 - **Help**: `uv run python -m mintmaker_schedule_calculator -h`
 - **Run**: `uv run python -m mintmaker_schedule_calculator -n 5` — see [Basic Usage](README.md#basic-usage) for flags
 - **Tests**: `uv sync --extra dev && uv run pytest tests/`
-- **Lint check**: `uv run ruff format --check src tests && uv run ruff check src tests`
+- **Lint**: `uv run ruff format src tests && uv run ruff check --fix src tests` (single file: `uv run ruff check --fix path/to/file.py`). CI is report-only (`format --check` / `check`); rules and suppression baseline: [Lint](README.md#lint)
 - **Quick type check**: `uv run --with pyright pyright src/mintmaker_schedule_calculator`
 - **Build image**: `podman/docker build -f Containerfile -t mintmaker-schedule-calculator .`
 

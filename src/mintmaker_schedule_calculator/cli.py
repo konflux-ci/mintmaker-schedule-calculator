@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cron_converter import Cron
 from kubernetes.client import CoreV1Api  # type: ignore[import-not-found]
@@ -87,7 +87,7 @@ def analyze_cron_schedule(
 
     logger.info("Merged schedule: %s", merged_schedule.to_string())
 
-    reference = datetime.now(timezone.utc)
+    reference = datetime.now(UTC)
     schedule = merged_schedule.schedule(reference)
 
     next_runs: list[str] = []
