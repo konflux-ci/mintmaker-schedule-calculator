@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mintmaker-schedule-calculator"
 version = "0.1.0"
-description = "Add your description here"
+description = "Backend for MintMaker UI schedule timers — reads CronJob and Renovate schedules and calculates upcoming runs."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
