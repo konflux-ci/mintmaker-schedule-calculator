@@ -1,11 +1,19 @@
 import argparse
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
 
 from cron_converter import Cron
+from kubernetes.client import CoreV1Api  # type: ignore[import-not-found]
 
-from .k8s import get_cronjob_schedule_from_k8s
+from .k8s import (
+    create_results_configmap,
+    get_configmap_from_k8s,
+    get_cronjob_schedule_from_k8s,
+    load_kube_client,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,9 +24,28 @@ logger = logging.getLogger(__name__)
 
 CRONJOB_NAME = "create-dependencyupdatecheck"
 CRONJOB_NAMESPACE = "mintmaker"
+CONFIGMAP_NAME = "renovate-config"
+DEFAULT_OUTPUT_CONFIGMAP = "mintmaker-schedule-calculator-results"
+# Allow default or mintmaker-schedule-calculator-<label>-results
+OUTPUT_CONFIGMAP_PATTERN = re.compile(
+    r"^mintmaker-schedule-calculator(-[a-z0-9]+)?-results$"
+)
 
 
-def merge_cron_schedules(cron_expression: str, general_schedule_expression: str) -> Cron | None:
+def get_output_configmap_name() -> str:
+    """Return OUTPUT_CONFIGMAP after validating it matches the allowed pattern."""
+    name = os.environ.get("OUTPUT_CONFIGMAP", DEFAULT_OUTPUT_CONFIGMAP)
+    if not OUTPUT_CONFIGMAP_PATTERN.fullmatch(name):
+        raise ValueError(
+            f"Invalid OUTPUT_CONFIGMAP '{name}'; must match "
+            f"{OUTPUT_CONFIGMAP_PATTERN.pattern}"
+        )
+    return name
+
+
+def merge_cron_schedules(
+    cron_expression: str, general_schedule_expression: str
+) -> Cron | None:
     """Merge two cron expressions by intersecting their fields."""
     cron = Cron()
     cron.from_string(cron_expression)
@@ -37,7 +64,9 @@ def merge_cron_schedules(cron_expression: str, general_schedule_expression: str)
     for i in range(len(field_names)):
         intersection = sorted(set(cron_list[i]) & set(general_list[i]))
         if not intersection:
-            logger.warning("No intersection in %s field - schedules never align.", field_names[i])
+            logger.warning(
+                "No intersection in %s field - schedules never align.", field_names[i]
+            )
             return None
         merged.append(intersection)
 
@@ -68,16 +97,8 @@ def analyze_cron_schedule(
     return next_runs
 
 
-def write_to_txt(next_runs: list[str], filename: str = "scheduled_times.txt") -> bool:
-    try:
-        with open(filename, "w", encoding="utf-8") as output_file:
-            for time in next_runs:
-                output_file.write(f"{time}\n")
-        logger.info("Results written to %s.", filename)
-        return True
-    except Exception as e:
-        logger.error("Could not write to file %s: %s.", filename, e)
-        return False
+def format_schedule_times(next_runs: list[str]) -> str:
+    return "\n".join(next_runs) + ("\n" if next_runs else "")
 
 
 def find_managers_with_schedules(config: dict) -> dict[str, str]:
@@ -91,27 +112,32 @@ def find_managers_with_schedules(config: dict) -> dict[str, str]:
                 schedule = manager_config["schedule"]
                 if isinstance(schedule, list) and schedule:
                     managers[manager] = schedule[0]
-                    logger.info("Found manager '%s' with schedule: %s.", manager, schedule[0])
+                    logger.info(
+                        "Found manager '%s' with schedule: %s.", manager, schedule[0]
+                    )
 
     return managers
 
 
-def parse_renovate_config(config_path: str) -> dict[str, str]:
-    try:
-        with open(config_path, "r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
+def parse_renovate_config_from_configmap(
+    configmap_name: str, namespace: str, api: CoreV1Api, key: str = "renovate.json"
+) -> dict[str, str]:
+    data = get_configmap_from_k8s(configmap_name, namespace, api)
 
-        managers_with_schedules = find_managers_with_schedules(config)
+    if key not in data:
+        raise ValueError(
+            f"Key '{key}' not found in ConfigMap {namespace}/{configmap_name}."
+        )
 
-        if managers_with_schedules:
-            logger.info("Found %d manager(s) with schedules.", len(managers_with_schedules))
-        else:
-            logger.info("No managers with schedules found.")
+    config = json.loads(data[key])
+    managers_with_schedules = find_managers_with_schedules(config)
 
-        return managers_with_schedules
-    except Exception as e:
-        logger.error("Error parsing renovate config: %s.", e)
-        return {}
+    if managers_with_schedules:
+        logger.info("Found %d manager(s) with schedules.", len(managers_with_schedules))
+    else:
+        logger.info("No managers with schedules found.")
+
+    return managers_with_schedules
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -127,11 +153,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of next scheduled runs to calculate (default: 5)",
     )
     parser.add_argument(
-        "-c",
-        "--config",
+        "--configmap",
+        type=str,
+        default=CONFIGMAP_NAME,
+        help=f"ConfigMap name containing renovate.json (default: {CONFIGMAP_NAME})",
+    )
+    parser.add_argument(
+        "--configmap-key",
         type=str,
         default="renovate.json",
-        help="Config path for renovate.json",
+        help="Key in ConfigMap containing the config (default: renovate.json)",
     )
     parser.add_argument(
         "--cronjob-name",
@@ -150,25 +181,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     try:
+        output: dict[str, str] = {}
         parser = build_parser()
         args = parser.parse_args(argv)
+        output_configmap = get_output_configmap_name()
+
+        core_api, batch_api = load_kube_client()
 
         logger.info("Processing CronJob schedule...")
         general_schedule = get_cronjob_schedule_from_k8s(
             cronjob_name=args.cronjob_name,
             namespace=args.namespace,
+            api=batch_api,
         )
-        if not general_schedule:
-            return 1
 
         try:
-            result = analyze_cron_schedule(general_schedule, general_schedule, args.count)
-            write_to_txt(result, "general_scheduled_times.txt")
+            result = analyze_cron_schedule(
+                general_schedule, general_schedule, args.count
+            )
+            output["general_scheduled_times.txt"] = format_schedule_times(result)
         except Exception as e:
             logger.error("Failed to process general schedule: %s.", e)
 
         logger.info("Processing Renovate managers...")
-        managers = parse_renovate_config(args.config)
+        managers = parse_renovate_config_from_configmap(
+            args.configmap, args.namespace, core_api, args.configmap_key
+        )
 
         for manager_name, schedule in managers.items():
             logger.info("Processing manager: %s.", manager_name)
@@ -177,9 +215,17 @@ def main(argv: list[str] | None = None) -> int:
                 result = analyze_cron_schedule(schedule, general_schedule, args.count)
                 safe_name = manager_name.replace(".", "_").replace("-", "_")
                 filename = f"{safe_name}_scheduled_times.txt"
-                write_to_txt(result, filename)
+                output[filename] = format_schedule_times(result)
             except Exception as e:
                 logger.error("Failed to process manager '%s': %s.", manager_name, e)
+
+        if not output:
+            logger.warning(
+                "No schedule results produced; nothing written to ConfigMap."
+            )
+            return 1
+
+        create_results_configmap(output_configmap, args.namespace, output, core_api)
 
         logger.info("Schedule analysis complete.")
         return 0
@@ -190,4 +236,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
