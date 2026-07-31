@@ -94,7 +94,7 @@ uv run ruff check src tests
 Auto-fix: `uv run ruff format src tests` and `uv run ruff check --fix src tests`.  
 Single file: `uv run ruff check src/mintmaker_schedule_calculator/cli.py`.
 
-**CI**: [`.github/workflows/ruff.yaml`](.github/workflows/ruff.yaml) runs format `--check` and `ruff check` on PRs and pushes to `main` (check name: `Ruff lint check`). [`.github/workflows/fullsend.yaml`](.github/workflows/fullsend.yaml) waits for that check before dispatching.
+**CI**: [`.github/workflows/ruff.yaml`](.github/workflows/ruff.yaml) runs `ruff format --check` and `ruff check` on PRs and pushes to `main` (check name: `Ruff lint check`). [`.github/workflows/fullsend.yaml`](.github/workflows/fullsend.yaml) waits for that check before dispatching.
 
 **Suppression baseline**: no `# noqa` comments and no global `ignore`. Tests allow `S101` via `[tool.ruff.lint.per-file-ignores]` (pytest assertions). Prefer fixing findings; if a new suppression is required, keep it narrow and update this baseline.
 
