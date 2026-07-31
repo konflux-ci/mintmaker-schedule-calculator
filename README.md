@@ -80,4 +80,22 @@ To work on this project locally:
 2. Edit code under `src/mintmaker_schedule_calculator/` (CLI entry point: `cli.py`, cluster access: `k8s.py`).
 3. Run the tool as in [Run](#run) to verify changes. For cluster-backed behavior, use a kubeconfig pointed at a cluster where the mintmaker namespace with a CronJob exists.
 
+### Lint
+
+Ruff rules and settings are in [`pyproject.toml`](pyproject.toml) (`[tool.ruff]` / `[tool.ruff.lint]`).
+
+**Commands** (report-only, same as CI):
+
+```bash
+uv run ruff format --check src tests
+uv run ruff check src tests
+```
+
+Auto-fix: `uv run ruff format src tests` and `uv run ruff check --fix src tests`.  
+Single file: `uv run ruff check src/mintmaker_schedule_calculator/cli.py`.
+
+**CI**: [`.github/workflows/ruff.yaml`](.github/workflows/ruff.yaml) runs `ruff format --check` and `ruff check` on PRs and pushes to `main` (check name: `Ruff lint check`). [`.github/workflows/fullsend.yaml`](.github/workflows/fullsend.yaml) waits for that check before dispatching.
+
+**Suppression baseline**: no `# noqa` comments and no global `ignore`. Tests allow `S101` via `[tool.ruff.lint.per-file-ignores]` (pytest assertions). Prefer fixing findings; if a new suppression is required, keep it narrow and update this baseline.
+
 Pull requests are reviewed by the owners in [`.github/CODEOWNERS`](.github/CODEOWNERS). CI builds the container image from [`Containerfile`](Containerfile) via Konflux/Tekton on each PR to `main`. See [CHANGELOG.md](CHANGELOG.md) for release notes.

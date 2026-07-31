@@ -27,7 +27,7 @@ class TestParseRenovateConfigFromConfigmap:
 
     @patch.object(cli, "get_configmap_from_k8s", return_value={})
     def test_missing_key_raises(self, _mock_get):
-        with pytest.raises(ValueError, match="Key 'renovate.json' not found"):
+        with pytest.raises(ValueError, match=r"Key 'renovate\.json' not found"):
             cli.parse_renovate_config_from_configmap(
                 "renovate-config", "mintmaker", MagicMock()
             )
