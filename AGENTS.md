@@ -40,7 +40,7 @@ This project uses `uv` for development. Follow setup in [Setup (with uv)](README
 
 - **Edits**: Target minimal diff. Files to edit: `k8s.py` (cluster I/O), `cli.py` (cron/Renovate/output). Use `snake_case` naming. Use `logger` (no `print`) when the output is important.
 - **Tests**: Add or update tests for behavior changes.
-- **Documentation**: Update the corresponding parts of documentation (root README.md) to reflect changes made when applicable.
+- **Documentation**: Follow `.cursor/rules/docs-sync.mdc` (always on): after `src/` changes, update docstrings and mapped docs in the same response; user accepts file diffs in Cursor.
 - **Imports & deps**: Stdlib → third-party → local (`isort` via ruff `I`); fix with `uv run ruff check --fix src`. Add packages in `pyproject.toml` (`dependencies` or `[dependency-groups] dev`), then `uv lock` and `uv sync`. After pulling lockfile changes, run `uv sync`.
 - **Dependencies**: [Requirements](README.md#requirements) + `pyproject.toml` / `uv lock`.
 - **Input**: Renovate config from ConfigMap `--configmap` / `--configmap-key` (defaults: `renovate-config`, `renovate.json`).

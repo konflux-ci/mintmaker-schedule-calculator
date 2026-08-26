@@ -28,6 +28,7 @@ def load_kube_client() -> tuple[CoreV1Api, BatchV1Api]:
 def get_cronjob_schedule_from_k8s(
     cronjob_name: str, namespace: str, api: BatchV1Api
 ) -> str:
+    """Read the cron schedule string from a CronJob resource."""
     cronjob = api.read_namespaced_cron_job(name=cronjob_name, namespace=namespace)
     schedule = getattr(getattr(cronjob, "spec", None), "schedule", None)
     if not schedule:
