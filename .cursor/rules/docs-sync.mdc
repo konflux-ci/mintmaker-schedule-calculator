@@ -1,0 +1,75 @@
+---
+description: Keep docstrings and docs aligned with code changes — update docs in the same turn after src/ or Containerfile edits
+alwaysApply: true
+---
+
+# Documentation Sync
+
+`alwaysApply: true` means this rule is in context for every chat — **not** watch-on-save. Sync runs when **you or the user** change code under `src/` or `Containerfile`, when the user says “run docs-sync”, or when the user asks about docs.
+
+## Guardrails
+
+- **Docs only** — edit docstrings and mapped markdown. Do **not** change product logic (returns, control flow, types, imports for behavior).
+- **Do not revert user code** — no `git checkout`, `git restore`, or “fixing” `src/` unless the user explicitly asks.
+- **Diff-hunk scope** — update docs for what **changed in the diff**, not for pre-existing behavior nearby in the same file.
+- **Empty discovery** — if `git diff` and the untracked list show nothing under watched paths (after skipping scratch), report “nothing to sync” and make **no** edits.
+- **Docstring-only** — docstring additions or tweaks alone do **not** warrant `CHANGELOG.md` updates.
+
+Report-only (no edits) only if the user explicitly asks for suggestions without changes.
+
+## Apply doc updates in the same response
+
+1. **Discover** changes with git (no scripts).
+2. **Edit** docstrings and mapped docs to match the code changes in the diff.
+3. User reviews each file diff in Cursor (Accept / Reject) — no need to ask “should I apply?” in chat first.
+
+## Discover changes
+
+Watched paths: `src/`, `Containerfile` (repo root).
+
+`git diff` only covers **tracked** files. Run all of:
+
+```bash
+git diff HEAD -- src/ Containerfile
+git ls-files --others --exclude-standard -- src/ Containerfile
+```
+
+- **Diff** — edits to tracked files under watched paths (staged and unstaged).
+- **Untracked list** — new files under watched paths (e.g. a new module). **Read each file**; there is no diff until it is tracked.
+
+Check mapped docs when any tracked or untracked file under watched paths changed.
+
+## What to update
+
+### Docstrings (`src/mintmaker_schedule_calculator/*.py`)
+
+- Missing → add a clear one-line summary (Args/Returns if non-trivial).
+- Behavior or signature changed in the diff → update docstring to match.
+- Function removed → remove stale mentions from docs.
+
+### Mapped docs
+
+| Source changed | Update |
+|----------------|--------|
+| `cli.py` | `README.md`, `CHANGELOG.md`, `AGENTS.md`, `skills/local-run-debug/SKILL.md` |
+| `__main__.py` | `README.md`, `CHANGELOG.md`, `AGENTS.md`, `skills/local-run-debug/SKILL.md` |
+| `k8s.py` | `README.md`, `AGENTS.md` |
+| `Containerfile` | `README.md` |
+
+- **README** — CLI flags, usage, exit codes, ConfigMap I/O, `OUTPUT_CONFIGMAP`, `python -m` invocation
+- **CHANGELOG** — user-visible changes under `## Unreleased` only (not docstring-only churn)
+- **AGENTS.md** — architecture, runtime flow (`__main__.py` → `cli.main()`), commands, conventions, exit codes
+- **skills/local-run-debug/SKILL.md** — local run / debug when CLI, entrypoint, or behavior changed
+
+Minimal diff; match existing tone.
+
+## After editing
+
+Briefly list which files you updated and why.
+
+## Docstring style
+
+```python
+def example(arg: str) -> list[str]:
+    """Short summary of what the function does."""
+```

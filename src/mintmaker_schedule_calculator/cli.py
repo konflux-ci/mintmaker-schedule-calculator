@@ -78,6 +78,7 @@ def merge_cron_schedules(
 def analyze_cron_schedule(
     cron_expression: str, general_schedule_expression: str, number_of_runs: int
 ) -> list[str]:
+    """Return the next aligned run times between two cron schedules."""
     logger.info("Finding next %d aligned runs between schedules.", number_of_runs)
 
     merged_schedule = merge_cron_schedules(cron_expression, general_schedule_expression)
@@ -98,10 +99,12 @@ def analyze_cron_schedule(
 
 
 def format_schedule_times(next_runs: list[str]) -> str:
+    """Format ISO run times as newline-separated text for ConfigMap output."""
     return "\n".join(next_runs) + ("\n" if next_runs else "")
 
 
 def find_managers_with_schedules(config: dict) -> dict[str, str]:
+    """Extract enabled Renovate managers and their first schedule cron expression."""
     managers: dict[str, str] = {}
     enabled_managers = config.get("enabledManagers", [])
 
@@ -122,6 +125,7 @@ def find_managers_with_schedules(config: dict) -> dict[str, str]:
 def parse_renovate_config_from_configmap(
     configmap_name: str, namespace: str, api: CoreV1Api, key: str = "renovate.json"
 ) -> dict[str, str]:
+    """Read Renovate JSON from a ConfigMap and return manager schedule expressions."""
     data = get_configmap_from_k8s(configmap_name, namespace, api)
 
     if key not in data:
@@ -141,6 +145,7 @@ def parse_renovate_config_from_configmap(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
         prog="mintmaker_schedule_calculator",
         description="Analyze CronJob and Renovate managers schedules.",
@@ -180,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Compute aligned schedules and write results to the output ConfigMap."""
     try:
         output: dict[str, str] = {}
         parser = build_parser()
