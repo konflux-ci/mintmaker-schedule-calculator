@@ -1,0 +1,14 @@
+---
+description: Keep docstrings and docs aligned with code changes — follow AGENTS.md Documentation sync
+alwaysApply: true
+---
+
+# Documentation sync
+
+Follow **[Documentation sync](../../AGENTS.md#documentation-sync)** in [AGENTS.md](../../AGENTS.md). That section is the source of truth for all contributors and agents.
+
+**How this rule is loaded vs when sync runs**
+
+- **Loaded (`alwaysApply: true`)** — Cursor includes this pointer in **every chat** as background context. It does **not** run on file save or in the background.
+- **Sync runs only when** `src/` or `Containerfile` changes, the user says “docs sync” / “run docs-sync”, or asks about documentation — then follow [AGENTS.md § Documentation sync](../../AGENTS.md#documentation-sync) in that same response.
+
