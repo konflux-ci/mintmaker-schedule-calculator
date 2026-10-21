@@ -24,6 +24,7 @@ packages = ["src/mintmaker_schedule_calculator"]
 
 [dependency-groups]
 dev = [
+    "gitlint==0.19.1",
     "ruff>=0.15.14",
 ]
 
