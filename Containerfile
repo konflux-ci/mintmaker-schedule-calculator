@@ -1,5 +1,4 @@
-FROM registry.access.redhat.com/ubi10/python-312-minimal@sha256:4eb5d80de0ef47a7fdff94a76b784d9b23a8118850426a2ac2b39df0a41cbbae
-
+FROM registry.redhat.io/ubi9/python-312@sha256:f793a102147ffa00b45ccb88ae91d726c17ac2f7e70214eef0cbfdc32816ec01
 WORKDIR /
 # OpenShift preflight check requires licensing files under /licenses
 COPY licenses/ licenses
@@ -7,15 +6,21 @@ COPY licenses/ licenses
 WORKDIR /opt/app-root/src
 
 USER 0
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir uv
+RUN source /tmp/hermeto.env && \
+    pip install uv
 
 USER 1001
 
-COPY --chown=1001:0 pyproject.toml uv.lock README.md ./
+COPY --chown=1001:0 pyproject.toml uv.lock README.md requirements.txt ./
 COPY --chown=1001:0 src ./src
 
-RUN uv sync --frozen --no-dev
+RUN uv venv && \
+    uv pip install --offline --no-index \
+      --find-links=/tmp/hermeto-output/deps/pip \
+      --require-hashes \
+      -r requirements.txt && \
+    uv pip install --offline --no-index --no-deps \
+      --find-links=/tmp/hermeto-output/deps/pip .
 
 ENV VIRTUAL_ENV=/opt/app-root/src/.venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
