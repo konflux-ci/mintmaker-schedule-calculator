@@ -1,0 +1,18 @@
+contentOrigin:
+  repofiles:
+    - ./ubi.repo
+
+packages:
+  - gcc
+  - gcc-c++
+  - make
+  - python3.12-devel
+  - pkgconf-pkg-config
+
+arches:
+  - x86_64
+  - aarch64
+
+context:
+  containerfile:
+    file: Containerfile
