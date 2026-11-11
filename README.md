@@ -98,4 +98,4 @@ Single file: `uv run ruff check src/mintmaker_schedule_calculator/cli.py`.
 
 **Suppression baseline**: no `# noqa` comments and no global `ignore`. Tests allow `S101` via `[tool.ruff.lint.per-file-ignores]` (pytest assertions). Prefer fixing findings; if a new suppression is required, keep it narrow and update this baseline.
 
-Pull requests are reviewed by the owners in [`.github/CODEOWNERS`](.github/CODEOWNERS). CI builds the container image from [`Containerfile`](Containerfile) via Konflux/Tekton on each PR to `main`. See [CHANGELOG.md](CHANGELOG.md) for release notes.
+Pull requests are reviewed by the owners in [`.github/CODEOWNERS`](.github/CODEOWNERS). See [CHANGELOG.md](CHANGELOG.md) for release notes.
